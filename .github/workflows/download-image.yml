@@ -16,10 +16,12 @@ name: Download Docker Image
         description: 'FTP port (default: 21)'
         required: false
         default: '21'
+        type: string
       ftp_path:
         description: 'FTP target path (e.g., /docker-images/)'
         required: false
         default: '/'
+        type: string
 
   workflow_call:
     inputs:
@@ -36,10 +38,12 @@ name: Download Docker Image
         description: 'FTP port (default: 21)'
         required: false
         default: '21'
+        type: string
       ftp_path:
         description: 'FTP target path (e.g., /docker-images/)'
         required: false
         default: '/'
+        type: string
     secrets:
       DOCKER_HUB_TOKEN:
         required: false
