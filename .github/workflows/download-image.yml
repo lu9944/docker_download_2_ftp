@@ -144,8 +144,15 @@ jobs:
           echo "=========================================="
 
           IMAGE_REF="${{ inputs.image_ref }}"
+
+          # sanitize_filename 逻辑（与 Rust 代码保持一致）
+          # 将 :、/、\ 替换为 _
+          SANITIZED_NAME="${IMAGE_REF//:/_}"
+          SANITIZED_NAME="${SANITIZED_NAME//\//_}"
+          SANITIZED_NAME="${SANITIZED_NAME//\\/_}"
+          ARCHIVE_NAME="${SANITIZED_NAME}.tar.gz"
+
           ARCHIVE=$(ls /mnt/*.tar.gz | head -1)
-          ARCHIVE_NAME=$(basename "$ARCHIVE")
 
           # 解析镜像引用
           # 格式: [registry/]org/name[:tag]
