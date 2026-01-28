@@ -1,6 +1,6 @@
 name: Download Docker Image
 
-on:
+'on':
   workflow_dispatch:
     inputs:
       image_ref:
