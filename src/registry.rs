@@ -73,8 +73,22 @@ impl RegistryClient {
 
         // 添加 Basic Auth（如果有用户名密码）
         // 注意：如果没有用户名密码，Docker Hub 会返回匿名 token（用于公开镜像）
-        if let (Some(username), Some(password)) = (&self.username, &self.password) {
-            let credentials = format!("{}:{}", username, password);
+        //
+        // Docker Hub Access Token 的正确使用方式：
+        // - 使用 Access Token 时，用户名应该为空，密码是 token
+        // - 检测 token 的特征（通常很长，>50 字符）
+        if let Some(password) = &self.password {
+            let credentials = if let Some(username) = &self.username {
+                // 如果密码看起来像 Access Token（很长），忽略用户名
+                if password.len() > 50 {
+                    format!(":{}", password)  // 空用户名 + token 作为密码
+                } else {
+                    format!("{}:{}", username, password)  // 用户名 + 密码
+                }
+            } else {
+                // 没有用户名，只有密码（可能是 token）
+                format!(":{}", password)
+            };
             let encoded = base64::engine::general_purpose::STANDARD.encode(credentials);
             req = req.header(header::AUTHORIZATION, format!("Basic {}", encoded));
         }
