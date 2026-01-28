@@ -12,6 +12,14 @@ on:
         required: false
         type: boolean
         default: false
+      ftp_port:
+        description: 'FTP port (default: 21)'
+        required: false
+        default: '21'
+      ftp_path:
+        description: 'FTP target path (e.g., /docker-images/)'
+        required: false
+        default: '/'
 
   workflow_call:
     inputs:
@@ -24,6 +32,14 @@ on:
         required: false
         type: boolean
         default: false
+      ftp_port:
+        description: 'FTP port (default: 21)'
+        required: false
+        default: '21'
+      ftp_path:
+        description: 'FTP target path (e.g., /docker-images/)'
+        required: false
+        default: '/'
     secrets:
       DOCKER_HUB_TOKEN:
         required: false
@@ -84,15 +100,31 @@ jobs:
 
       - name: Upload to FTP (optional)
         if: inputs.upload_ftp == true
-        env:
-          FTP_SERVER: ${{ vars.FTP_SERVER }}
-          FTP_USERNAME: ${{ vars.FTP_USERNAME }}
-          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
+          echo "=========================================="
+          echo "开始上传到 FTP 服务器"
+          echo "=========================================="
+          echo "FTP 端口: ${{ inputs.ftp_port }}"
+          echo "FTP 路径: ${{ inputs.ftp_path }}"
+
           ARCHIVE=$(ls /mnt/*.tar.gz | head -1)
-          echo "Uploading $ARCHIVE to FTP..."
-          echo "FTP_SERVER: ${FTP_SERVER}"
-          echo "FTP_USERNAME: ${FTP_USERNAME}"
-          curl -v -T "$ARCHIVE" --ftp-create-dirs \
-            --url "ftp://${FTP_SERVER}/" \
-            --user "${FTP_USERNAME}:${FTP_PASSWORD}"
+          ARCHIVE_NAME=$(basename "$ARCHIVE")
+          echo "文件: $ARCHIVE"
+          echo "文件名: $ARCHIVE_NAME"
+
+          # 确保路径以 / 结尾
+          FTP_PATH="${{ inputs.ftp_path }}"
+          if [[ "${FTP_PATH: -1}" != "/" ]]; then
+            FTP_PATH="${FTP_PATH}/"
+          fi
+
+          # 使用 curl 上传文件到 FTP
+          curl -T "$ARCHIVE" \
+            "ftp://${{ secrets.FTP_SERVER }}:${{ inputs.ftp_port }}${FTP_PATH}${ARCHIVE_NAME}" \
+            --user "${{ vars.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" \
+            --ftp-create-dirs \
+            -v
+
+          echo "=========================================="
+          echo "✅ FTP 上传完成!"
+          echo "=========================================="
