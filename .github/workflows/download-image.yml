@@ -11,7 +11,7 @@ name: Download Docker Image
         description: 'Upload to FTP after download'
         required: false
         type: boolean
-        default: false
+        default: true
       ftp_port:
         description: 'FTP port (default: 21)'
         required: false
@@ -94,13 +94,6 @@ jobs:
         run: |
           echo "Downloaded archive:"
           ls -lh /mnt/*.tar.gz
-
-      - name: Upload artifact (optional)
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-${{ github.run_number }}
-          path: /mnt/*.tar.gz
-          retention-days: 7
 
       - name: Upload to FTP (optional)
         if: inputs.upload_ftp == true
