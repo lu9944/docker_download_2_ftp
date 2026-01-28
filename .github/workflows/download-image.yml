@@ -124,7 +124,7 @@ jobs:
 
           # 使用 curl 上传文件到 FTP
           curl -T "$ARCHIVE" \
-            "ftp://${{ secrets.FTP_SERVER }}:${{ inputs.ftp_port }}${FTP_PATH}${ARCHIVE_NAME}" \
+            "ftp://${{ vars.FTP_SERVER }}:${{ inputs.ftp_port }}${FTP_PATH}${ARCHIVE_NAME}" \
             --user "${{ vars.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" \
             --ftp-create-dirs \
             -v
