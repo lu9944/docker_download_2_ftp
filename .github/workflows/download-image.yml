@@ -22,6 +22,11 @@ name: Download Docker Image
         required: false
         default: '/'
         type: string
+      enable_notification:
+        description: 'Enable notification after upload'
+        required: false
+        type: boolean
+        default: false
 
   workflow_call:
     inputs:
@@ -44,6 +49,11 @@ name: Download Docker Image
         required: false
         default: '/'
         type: string
+      enable_notification:
+        description: 'Enable notification after upload'
+        required: false
+        type: boolean
+        default: false
     secrets:
       DOCKER_HUB_TOKEN:
         required: false
@@ -124,4 +134,67 @@ jobs:
 
           echo "=========================================="
           echo "✅ FTP 上传完成!"
+          echo "=========================================="
+
+      - name: Send notification
+        if: inputs.upload_ftp == true && inputs.enable_notification == true && vars.NOTIFICATION_URL != ''
+        run: |
+          echo "=========================================="
+          echo "发送通知"
+          echo "=========================================="
+
+          IMAGE_REF="${{ inputs.image_ref }}"
+          ARCHIVE=$(ls /mnt/*.tar.gz | head -1)
+          ARCHIVE_NAME=$(basename "$ARCHIVE")
+
+          # 解析镜像引用
+          # 格式: [registry/]org/name[:tag]
+          if [[ "$IMAGE_REF" =~ ^([^/]+)/([^:]+):(.+)$ ]]; then
+            # org/name:tag 格式
+            ORG="${BASH_REMATCH[1]}"
+            NAME="${BASH_REMATCH[2]}"
+            TAG="${BASH_REMATCH[3]}"
+          elif [[ "$IMAGE_REF" =~ ^([^/]+)/([^/]+)$ ]]; then
+            # org/name 格式 (无 tag)
+            ORG="${BASH_REMATCH[1]}"
+            NAME="${BASH_REMATCH[2]}"
+            TAG="latest"
+          elif [[ "$IMAGE_REF" =~ ^([^:]+)$ ]]; then
+            # name 格式 (无 org, 无 tag)
+            ORG="library"
+            NAME="${BASH_REMATCH[1]}"
+            TAG="latest"
+          else
+            ORG="unknown"
+            NAME="unknown"
+            TAG="unknown"
+          fi
+
+          echo "镜像组织: $ORG"
+          echo "镜像名称: $NAME"
+          echo "镜像标签: $TAG"
+          echo "FTP文件名: $ARCHIVE_NAME"
+
+          # 构建 JSON
+          JSON=$(cat <<EOF
+          {
+            "organization": "$ORG",
+            "name": "$NAME",
+            "tag": "$TAG",
+            "filename": "$ARCHIVE_NAME"
+          }
+          EOF
+          )
+
+          echo "通知 URL: ${{ vars.NOTIFICATION_URL }}"
+          echo "通知内容: $JSON"
+
+          # 发送 POST 请求
+          curl -X POST "${{ vars.NOTIFICATION_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "$JSON" \
+            -v
+
+          echo "=========================================="
+          echo "✅ 通知已发送!"
           echo "=========================================="
