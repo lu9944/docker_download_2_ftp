@@ -38,10 +38,6 @@ impl RegistryClient {
 
     /// 获取认证 Token
     pub async fn authenticate(&mut self, repository: &str, scope: &str) -> Result<String> {
-        // 注意：PAT token 不能直接用作 Registry API 的 Bearer token
-        // 它需要通过 Docker Hub 的认证服务来获取 Registry token
-        // 所以我们继续下面的正常流程，使用 PAT token 作为 Basic Auth 凭证
-
         // 触发认证挑战
         let url = format!("https://{}/v2/", self.registry);
         let resp = self.client.get(&url).send().await?;
@@ -68,30 +64,45 @@ impl RegistryClient {
             token_url.push_str(&format!("&scope={}", scope));
         }
 
-        // 发送认证请求
+        // 智能认证策略：
+        // 1. 对于公开镜像，先尝试匿名获取 token（不发送认证信息）
+        // 2. 只有在匿名请求失败时才使用提供的凭证
+        // 3. Docker Hub Access Token 的正确用法：空用户名 + token 作为密码
+
+        // 先尝试匿名请求（用于公开镜像）
+        let anon_resp = self.client.get(&token_url).send().await?;
+
+        if anon_resp.status().is_success() {
+            // 匿名访问成功，直接返回 token
+            let token_resp: TokenResponse = anon_resp.json().await?;
+            let token = token_resp.access_token.unwrap_or(token_resp.token);
+            self.token = Some(token.clone());
+            return Ok(token);
+        }
+
+        // 匿名请求失败，尝试使用凭证（如果提供了）
+        if self.password.is_none() {
+            return Err(anyhow!("Anonymous access failed and no credentials provided"));
+        }
+
         let mut req = self.client.get(&token_url);
 
-        // 添加 Basic Auth（如果有用户名密码）
-        // 注意：如果没有用户名密码，Docker Hub 会返回匿名 token（用于公开镜像）
-        //
-        // Docker Hub Access Token 的正确使用方式：
-        // - 使用 Access Token 时，用户名应该为空，密码是 token
-        // - 检测 token 的特征（通常很长，>50 字符）
-        if let Some(password) = &self.password {
-            let credentials = if let Some(username) = &self.username {
-                // 如果密码看起来像 Access Token（很长），忽略用户名
-                if password.len() > 50 {
-                    format!(":{}", password)  // 空用户名 + token 作为密码
-                } else {
-                    format!("{}:{}", username, password)  // 用户名 + 密码
-                }
+        // 添加 Basic Auth
+        let password = self.password.as_ref().unwrap();
+        let credentials = if let Some(username) = &self.username {
+            // 如果用户名不为空，使用 username:password 格式
+            // 如果密码看起来像 Access Token（很长），忽略用户名
+            if password.len() > 50 {
+                format!(":{}", password)  // 空用户名 + token 作为密码
             } else {
-                // 没有用户名，只有密码（可能是 token）
-                format!(":{}", password)
-            };
-            let encoded = base64::engine::general_purpose::STANDARD.encode(credentials);
-            req = req.header(header::AUTHORIZATION, format!("Basic {}", encoded));
-        }
+                format!("{}:{}", username, password)  // 用户名 + 密码
+            }
+        } else {
+            // 没有用户名，只有密码（应该是 token）
+            format!(":{}", password)
+        };
+        let encoded = base64::engine::general_purpose::STANDARD.encode(credentials);
+        req = req.header(header::AUTHORIZATION, format!("Basic {}", encoded));
 
         let resp = req.send().await?;
 
