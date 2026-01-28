@@ -91,4 +91,8 @@ jobs:
         run: |
           ARCHIVE=$(ls /mnt/*.tar.gz | head -1)
           echo "Uploading $ARCHIVE to FTP..."
-          curl -T "$ARCHIVE" "ftp://${FTP_USERNAME}:${FTP_PASSWORD}@${FTP_SERVER}/"
+          echo "FTP_SERVER: ${FTP_SERVER}"
+          echo "FTP_USERNAME: ${FTP_USERNAME}"
+          curl -v -T "$ARCHIVE" --ftp-create-dirs \
+            --url "ftp://${FTP_SERVER}/" \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}"
