@@ -155,7 +155,7 @@ jobs:
           ARCHIVE=$(ls /mnt/*.tar.gz | head -1)
 
           # 解析镜像引用
-          # 格式: [registry/]org/name[:tag]
+          # 格式: [registry/]org/name[:tag] 或 name:tag
           if [[ "$IMAGE_REF" =~ ^([^/]+)/([^:]+):(.+)$ ]]; then
             # org/name:tag 格式
             ORG="${BASH_REMATCH[1]}"
@@ -166,6 +166,11 @@ jobs:
             ORG="${BASH_REMATCH[1]}"
             NAME="${BASH_REMATCH[2]}"
             TAG="latest"
+          elif [[ "$IMAGE_REF" =~ ^([^:]+):(.+)$ ]]; then
+            # name:tag 格式 (无 org)
+            ORG="library"
+            NAME="${BASH_REMATCH[1]}"
+            TAG="${BASH_REMATCH[2]}"
           elif [[ "$IMAGE_REF" =~ ^([^:]+)$ ]]; then
             # name 格式 (无 org, 无 tag)
             ORG="library"
