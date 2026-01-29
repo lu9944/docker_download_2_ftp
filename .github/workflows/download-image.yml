@@ -194,7 +194,10 @@ jobs:
           )
 
           echo "通知 URL: ${{ vars.NOTIFICATION_URL }}"
-          echo "通知内容: $JSON"
+          echo ""
+          echo "📋 通知数据:"
+          echo "$JSON" | jq '.' 2>/dev/null || echo "$JSON"
+          echo ""
 
           # 发送 POST 请求
           curl -X POST "${{ vars.NOTIFICATION_URL }}" \
